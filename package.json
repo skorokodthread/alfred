@@ -5,7 +5,11 @@
   "main": "index.js",
   "scripts": {
     "back": "DEBUG=startup:*,middleware:* nodemon --inspect index.js ",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "migration": "knex migrate:make",
+    "migrate": "knex migrate:latest",
+    "rollback": "knex migrate:rollback",
+    "seed": "knex seed:run",
+    "redo": "knex-migrate redo --verbose"
   },
   "repository": {
     "type": "git",
@@ -21,6 +25,7 @@
     "ava": "^1.2.1",
     "axios": "^0.18.0",
     "body-parser": "^1.18.3",
+    "cheerio": "^1.0.0-rc.2",
     "cors": "^2.8.5",
     "debug": "^4.1.1",
     "dotenv": "^6.2.0",
@@ -37,7 +42,8 @@
   },
   "nodemonConfig": {
     "ignore": [
-      "node_modules"
+      "node_modules",
+      "drop"
     ]
   },
   "ava": {

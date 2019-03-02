@@ -34,6 +34,7 @@ const start = function() {
     logStartupMain(`Startup error`, err)
     res.status(500).send('Internal error occurred, hold on')
   })
+  app.use('/api/2ch', require('./api/2ch'))
 
   server = app.listen(4000, () => {
     logStartupMain('Listen on 4000 port')
