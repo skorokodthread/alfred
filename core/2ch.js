@@ -37,7 +37,7 @@ class TwoChannel {
         .query()
         .where({ thread_deleted: true })
         .orWhere({ thread_ended: true })
-        .page(page, 10)
+        .page(page, 30)
       await ThreadModel.loadRelated(threads, 'posts')
       return threads
     } catch (e) {
@@ -135,7 +135,7 @@ class TwoChannel {
         thread_deleted: false,
         thread_ended: false,
       }
-      if (threadActivityDelta < hour * 2) {
+      if (threadActivityDelta < hour / 2) {
         data.thread_deleted = true
         deletedThreads += 1
       } else {
