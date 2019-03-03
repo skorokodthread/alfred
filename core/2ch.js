@@ -31,6 +31,47 @@ class TwoChannel {
     }
   }
 
+  async getDeletedThreads(page) {
+    try {
+      const { results: threads } = await ThreadModel
+        .query()
+        .where({ thread_deleted: true })
+        .orWhere({ thread_ended: true })
+        .page(page, 10)
+      await ThreadModel.loadRelated(threads, 'posts')
+      return threads
+    } catch (e) {
+      console.log(`Error at get deleted threads`, e)
+      throw e
+    }
+  }
+
+  async getStoredThreads(page) {
+    try {
+      const { results: threads } = await ThreadModel
+        .query()
+        .where({ thread_deleted: false, thread_ended: false })
+        .page(page, 10)
+      await ThreadModel.loadRelated(threads, 'posts')
+      threads.forEach(t => {
+        if (t.posts.filter(t => t.deleted).length) {
+          t.touched_by_mod = true
+        }
+      })
+      return threads
+    } catch (e) {
+      console.log(`Error at get stored threads`, e)
+      throw e
+    }
+  }
+
+  async getPostsForStoredThread(thread_id) {
+    const thread = await ThreadModel.query().where({ thread_id }).first()
+    if (!thread) throw new Error(`Нет такого треда`)
+    await ThreadModel.loadRelated([thread], 'posts')
+    return thread
+  }
+
   async getPosts(thread_id, trx) {
     const res = await retryUntilOk(async () => await axios({
       method: 'GET',
@@ -78,6 +119,33 @@ class TwoChannel {
     let newThreads = 0
     let affectedThreads = 0
     let postsDeletedInAllThreads = 0
+    let deletedThreads = 0
+    let endedThreads = 0
+    const threadsIds = threads.map(t => Number(t.num))
+    const now = Date.now()
+    const deletedOrEndedThreads = await ThreadModel
+      .query()
+      .select(['thread_id', 'last_activity'])
+      .whereNotIn('thread_id', threadsIds)
+      .andWhere({ thread_deleted: false, thread_ended: false })
+    await Promise.all(deletedOrEndedThreads.map(async t => {
+      const threadActivityDelta = now - new Date(t.last_activity).getTime()
+      const hour = 3600000
+      const data = {
+        thread_deleted: false,
+        thread_ended: false,
+      }
+      if (threadActivityDelta < hour * 2) {
+        data.thread_deleted = true
+        deletedThreads += 1
+      } else {
+        data.thread_ended = true
+        endedThreads += 1
+      }
+      await ThreadModel.query().where({
+        thread_id: t.thread_id
+      }).patch(data)
+    }))
     await Promise.all(threads.map(async t => {
       const posts = await this.getPosts(t.num)
       const thread_id = Number(t.num)
@@ -134,7 +202,9 @@ class TwoChannel {
     const d = {
       affected_threads: affectedThreads,
       new_threads: newThreads,
-      deleted_posts: postsDeletedInAllThreads
+      deleted_posts: postsDeletedInAllThreads,
+      ended_threads: endedThreads,
+      deleted_threads: deletedThreads
     }
     console.log(`Finished`, d)
     await this.endParse(d)

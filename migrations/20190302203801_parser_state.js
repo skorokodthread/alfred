@@ -7,6 +7,8 @@ exports.up = function(knex, Promise) {
     table.integer('deleted_posts')
     table.integer('affected_threads')
     table.integer('new_threads')
+    table.integer('ended_threads')
+    table.integer('deleted_threads')
   })
 };
 
